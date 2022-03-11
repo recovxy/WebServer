@@ -10,7 +10,7 @@
 #include <cassert>
 #include <sys/epoll.h>
 
-//#include "locker.h"
+#include "locker.h"
 #include "thread_pool.h"
 #include "http_conn.h"
 
