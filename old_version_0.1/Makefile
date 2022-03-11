@@ -6,4 +6,4 @@ http_conn.o:
 	g++ -Wall -g -c http_conn.cpp -o http_conn.o
 
 clean:
-	rm -r *.o app
+	rm -r *.o
