@@ -2,10 +2,13 @@
 #include <assert.h>
 #include <sys/syscall.h>
 #include <errno.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/prctl.h>
-#include "CurrentThread.h"
+#include <unistd.h>
+#include <iostream>
 
+#include "CurrentThread.h"
 
 
 pid_t gettid() { return static_cast<pid_t>(::syscall(SYS_gettid));}
@@ -19,10 +22,10 @@ void CurrentThread::cacheTid()
     }
 }
 
-struct ThreadData 
+struct ThreadData
 {
     typedef Thread::ThreadFunc ThreadFunc;
-    ThreadFunc func_;
+    ThreadFunc func_; //把用户传给Thread的函数交给ThreadData执行
     pid_t* tid_;
     std::string name_;
     CountDownLatch* latch_;
@@ -42,18 +45,26 @@ struct ThreadData
         CurrentThread::t_threadName = name_.empty() ? "Thread" : name_.c_str();
         prctl(PR_SET_NAME, CurrentThread::t_threadName);
 
-        func_();
+        func_(); //运行
         CurrentThread::t_threadName = "finished";
     }
 };
 
+//pthread_create只接受  void*(void*) 类型的指针，此函数作为辅助传入pthread_create
+void* startThread(void* obj) {
+    ThreadData* data = static_cast<ThreadData*>(obj);
+    data->runInThread();
+    delete data;
+    return NULL;
+}
 
 Thread::Thread(ThreadFunc func, const std::string& name = std::string())
             :func_(func), 
             name_(name),
             joined_(false),
             pthreadID_(0),
-            tid_(0)
+            tid_(0),
+            latch_(1)
             {
                 setDefaultName();
             }
@@ -65,10 +76,16 @@ Thread::~Thread()
 
 void Thread::start()
 {
-    auto data = new ThreadData(func_, name_, &tid_, &latch));
-    pthread_create(&pthreadID_, NULL, func_, data);
+    assert(!started_);
     started_ = true;
-
+    auto data = new ThreadData(func_, name_, &tid_, &latch_);
+    if (pthread_create(&pthreadID_, NULL, &startThread, data)) {
+        started_ = false;
+        delete data; //销毁
+    } else {
+        latch_.wait();
+        assert(tid_ > 0);
+    }
 }
 
 int Thread::join()
@@ -87,5 +104,3 @@ void Thread::setDefaultName()
         name_ = buf;
     }
 }
-
-pid_t Thread

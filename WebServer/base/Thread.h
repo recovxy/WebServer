@@ -3,10 +3,10 @@
 #include <functional>
 #include <string>
 #include <unistd.h>
+#include <memory>
 
+#include "CountDownLatch.h"
 #include "noncopyable.h"
-
-class CountDownLatch;
 
 class Thread : noncopyable
 {
@@ -30,4 +30,5 @@ private:
     pthread_t pthreadID_;
     ThreadFunc func_;
     std::string name_;
+    CountDownLatch latch_;
 };
